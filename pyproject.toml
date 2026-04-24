@@ -1,0 +1,12 @@
+[project]
+name = "claude-usage-bot"
+version = "0.1.0"
+description = "A Slack bot that reports Claude Code usage."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "requests>=2,<3",
+    "slack-bolt>=1,<2",
+    "tabulate==0.10.0",
+    "python-dotenv>=1,<2",
+]
