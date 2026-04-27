@@ -10,6 +10,8 @@ This Slack bot exposes access to the Claude usage API to team members, which ord
 - DM command: `cost <workspace_name or "all">` - Get a formatted ASCII table of daily cost for the current month
 - DM command: `usage-rawjson <workspace_name or "all"> <start_time> <end_time> <bucket_width>` - Get raw JSON response from Claude usage API with custom date ranges
 - DM command: `cost-rawjson <workspace_name or "all"> <start_time> <end_time>` - Get raw JSON response from Claude cost API with custom date ranges
+- DM command: `monthly-summary <yyyy-mm>` - Upload two CSVs for any calendar month: workspace totals and a per-workspace daily breakdown
+- Automated monthly report: on the 1st of each month at 09:00 system time, the bot posts the previous month's summary CSVs to the channel configured in `MONTHLY_REPORT_CHANNEL`
 
 ## Prerequisites
 
@@ -27,7 +29,6 @@ This Slack bot exposes access to the Claude usage API to team members, which ord
 4. Go to "Socket Mode" in the left sidebar and enable it
 5. Create an App Token with the `connections:write` scope - save this as `SLACK_APP_TOKEN`
 6. Go to "OAuth & Permissions" and add these Bot Token Scopes:
-   - `commands` (for slash commands)
    - `chat:write` (to send messages)
 7. Install the app to your workspace and copy the Bot User OAuth Token - save this as `SLACK_BOT_TOKEN`
 
@@ -62,9 +63,11 @@ In your Slack App settings, configure the following:
    ```
 
 2. Edit `.env` and fill in your values:
-   - `ANTHROPIC_ADMIN_API_KEY` - Your admin API key from [console.anthropic.com](https://console.anthropic.com)
+   - `ANTHROPIC_ADMIN_API_KEY` - Your admin API key from [console.anthropic.com](https://platform.anthropic.com)
    - `SLACK_BOT_TOKEN` - From OAuth & Permissions page
    - `SLACK_APP_TOKEN` - From Socket Mode page
+   - `MONTHLY_REPORT_CHANNEL` - Slack channel name (e.g. `#data-and-computational-resources`) or channel ID where the automated monthly report is posted. The bot must be a member of this channel (invite it with `/invite @BotName`).
+
 
 ### 4. Deploy with Docker Compose
 
@@ -128,6 +131,9 @@ usage-rawjson all 2024-01-01T00:00:00Z 2024-01-31T23:59:59Z 1d
 
 # Get raw JSON cost data for a custom date range
 cost-rawjson all 2024-01-01T00:00:00Z 2024-01-31T23:59:59Z
+
+# Get workspace totals and daily breakdown CSVs for a past month
+monthly-summary 2026-03
 ```
 
 ## API Reference

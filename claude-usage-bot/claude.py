@@ -1,8 +1,13 @@
+import logging
 import os
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+logger = logging.getLogger(__name__)
 
 
 class AnthropicUsageClient:
@@ -18,6 +23,9 @@ class AnthropicUsageClient:
             "x-api-key": os.environ.get("ANTHROPIC_ADMIN_API_KEY"),
         }
         self.cached_workspace_ids = {}
+        retry = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        self._session = requests.Session()
+        self._session.mount("https://", HTTPAdapter(max_retries=retry))
 
     def _paginated_get(self, endpoint: str, base_params: dict) -> dict:
         merged_data = []
@@ -26,9 +34,15 @@ class AnthropicUsageClient:
             params = dict(base_params)
             if next_page:
                 params["page"] = next_page
-            # Append group_by[] literally — requests would percent-encode [] to %5B%5D.
+            # Build the URL with literal [] and bypass requests' URL re-encoding,
+            # which would turn [] into %5B%5D and cause a 500 on the cost_report endpoint.
             qs = urllib.parse.urlencode(params) + "&group_by[]=workspace_id"
-            response = requests.get(f"{endpoint}?{qs}", headers=self.headers)
+            prep = requests.Request("GET", endpoint, headers=self.headers).prepare()
+            prep.url = f"{endpoint}?{qs}"
+            logger.info("GET %s", prep.url)
+            response = self._session.send(prep)
+            if not response.ok:
+                logger.error("API error %s: %s", response.status_code, response.text)
             response.raise_for_status()
             body = response.json()
             merged_data.extend(body.get("data", []))
@@ -166,14 +180,15 @@ class AnthropicUsageClient:
         return workspace_id
 
     def refresh_workspace_cache(self):
-        response = requests.get(
-            self.WORKSPACES_ENDPOINT, {"limit": 100}, headers=self.headers
+        logger.info("GET %s?limit=100", self.WORKSPACES_ENDPOINT)
+        response = self._session.get(
+            self.WORKSPACES_ENDPOINT, params={"limit": 100}, headers=self.headers
         )
         response.raise_for_status()
         response_json = response.json()
         if response_json["has_more"]:
             raise NotImplementedError(
-                "More than 100 workplaces found. Pagination not implemented yet."
+                "More than 100 workspaces found. Pagination not implemented yet."
             )
         self.cached_workspace_ids = {
             e["name"]: e["id"] for e in response_json["data"] if e["type"] == "workspace"

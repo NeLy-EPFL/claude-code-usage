@@ -4,6 +4,8 @@ services:
     container_name: claude-usage-bot
     env_file:
       - .env
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
     logging:
       driver: "json-file"
