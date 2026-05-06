@@ -11,6 +11,9 @@ This Slack bot exposes access to the Claude usage API to team members, which ord
 - DM command: `usage-rawjson <workspace_name or "all"> <start_time> <end_time> <bucket_width>` - Get raw JSON response from Claude usage API with custom date ranges
 - DM command: `cost-rawjson <workspace_name or "all"> <start_time> <end_time>` - Get raw JSON response from Claude cost API with custom date ranges
 - DM command: `monthly-summary <yyyy-mm>` - Upload two CSVs for any calendar month: workspace totals and a per-workspace daily breakdown
+- DM command: `alerts on <workspace_name>` - Subscribe to monthly usage alerts for your workspace
+- DM command: `alerts off` - Unsubscribe from usage alerts
+- DM command: `alerts status` - Show your current alert subscription and notified thresholds
 - Automated monthly report: on the 1st of each month at 09:00 system time, the bot posts the previous month's summary CSVs to the channel configured in `MONTHLY_REPORT_CHANNEL`
 
 ## Prerequisites
@@ -67,6 +70,9 @@ In your Slack App settings, configure the following:
    - `SLACK_BOT_TOKEN` - From OAuth & Permissions page
    - `SLACK_APP_TOKEN` - From Socket Mode page
    - `MONTHLY_REPORT_CHANNEL` - Slack channel name (e.g. `#data-and-computational-resources`) or channel ID where the automated monthly report is posted. The bot must be a member of this channel (invite it with `/invite @BotName`).
+   - `MONTHLY_PLAN_LIMIT` - Total monthly budget in USD shared across the team (default: `100`). Used to compute each user's share for usage alerts.
+   - `PLAN_MEMBER_COUNT` - Number of team members sharing the monthly budget (default: `9`). The per-user share is `MONTHLY_PLAN_LIMIT / PLAN_MEMBER_COUNT`.
+   - `ALERTS_FILE` - Path to the JSON file where alert subscriptions are persisted (default: `./data/alerts.json`).
 
 
 ### 4. Deploy with Docker Compose
@@ -103,6 +109,28 @@ cp .env.example .env
 uv run python main.py
 ```
 
+## Usage Alerts
+
+The bot can proactively DM you when your monthly workspace spending crosses certain thresholds.
+
+**How it works:**
+- Each user has a personal monthly share computed as `MONTHLY_PLAN_LIMIT / PLAN_MEMBER_COUNT`.
+- The bot checks spending every hour for all subscribers.
+- You receive a DM at **25 %, 50 %, 75 %, and 100 %** of your share. If spending continues to rise beyond the full share, you are notified at every additional 25 % increment (125 %, 150 %, …).
+- Each threshold fires only once per calendar month. Subscriptions and notification state are stored in `ALERTS_FILE`.
+
+**Commands:**
+```
+# Subscribe to alerts for a workspace
+alerts on my-workspace-name
+
+# Unsubscribe
+alerts off
+
+# Check your current subscription and which thresholds were already sent this month
+alerts status
+```
+
 ## Usage Examples
 
 In a DM with the app, you can now use:
@@ -134,6 +162,15 @@ cost-rawjson all 2024-01-01T00:00:00Z 2024-01-31T23:59:59Z
 
 # Get workspace totals and daily breakdown CSVs for a past month
 monthly-summary 2026-03
+
+# Subscribe to usage alerts for a workspace
+alerts on my-workspace-name
+
+# Check your alert subscription status
+alerts status
+
+# Unsubscribe from alerts
+alerts off
 ```
 
 ## API Reference
