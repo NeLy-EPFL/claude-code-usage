@@ -6,6 +6,7 @@ services:
       - .env
     volumes:
       - /etc/localtime:/etc/localtime:ro
+      - ./data:/app/data
     restart: unless-stopped
     logging:
       driver: "json-file"
